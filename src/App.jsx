@@ -40,7 +40,7 @@ function App() {
 
     try {
       const res = await fetch(
-        `http://localhost:8000/api/get/${aadhaar}/`
+        `https://pro-back-flsb.onrender.com/api/get/${aadhaar}/`
       )
 
       if (!res.ok) throw new Error("Citizen not found")
@@ -61,7 +61,7 @@ function App() {
   const submitCitizen = async () => {
     setError("")
     try {
-      const res = await fetch("http://localhost:8000/api/add/", {
+      const res = await fetch("https://pro-back-flsb.onrender.com/api/add/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
