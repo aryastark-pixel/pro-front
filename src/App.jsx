@@ -1,38 +1,18 @@
+
 import { useState } from "react"
 import "./App.css"
 
 const BASE_URL = "https://pro-back-flsb.onrender.com/api"
-// const BASE_URL = "http://localhost:8000/api"
+
 function App() {
+
   const [aadhaar, setAadhaar] = useState("")
   const [citizen, setCitizen] = useState(null)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
 
-  /* ================= COMMON DOWNLOAD FUNCTION ================= */
-
-  const downloadFile = async (url, filename) => {
-    try {
-      const response = await fetch(url)
-
-      if (!response.ok)
-        throw new Error("Failed to generate PDF")
-
-      const blob = await response.blob()
-
-      const link = document.createElement("a")
-      link.href = window.URL.createObjectURL(blob)
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-    } catch (err) {
-      alert(err.message)
-    }
-  }
-
-  /* ================= INDIVIDUAL PDF ================= */
+  /* ================= DOWNLOAD INDIVIDUAL PDF ================= */
 
   const downloadPDF = async () => {
     if (!aadhaar) {
@@ -40,13 +20,21 @@ function App() {
       return
     }
 
-    downloadFile(
-      `${BASE_URL}/citizen/${aadhaar}/pdf/`,
-      `Citizen_${aadhaar}.pdf`
+    const response = await fetch(
+      `${BASE_URL}/citizen/${aadhaar}/pdf/`
     )
+
+    const blob = await response.blob()
+
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `Citizen_${aadhaar}.pdf`
+    a.click()
+    window.URL.revokeObjectURL(url)
   }
 
-  /* ================= FAMILY PDF ================= */
+  /* ================= DOWNLOAD FAMILY PDF ================= */
 
   const downloadFamilyPDF = async () => {
     if (!aadhaar) {
@@ -54,10 +42,18 @@ function App() {
       return
     }
 
-    downloadFile(
-      `${BASE_URL}/fam/${aadhaar}/pdf/`,
-      `Family_${aadhaar}.pdf`
+    const response = await fetch(
+      `${BASE_URL}/family/${aadhaar}/pdf/`
     )
+
+    const blob = await response.blob()
+
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `Family_${aadhaar}.pdf`
+    a.click()
+    window.URL.revokeObjectURL(url)
   }
 
   /* ================= FORM STATE ================= */
@@ -69,16 +65,19 @@ function App() {
     relation_aadhaar: "",
     ward: "",
     gpu: "",
+    assembly_constituency: "",   // ✅ NEW
     district: "",
     coi: "",
     voter_id: "",
+    rc_no: "",                   // ✅ NEW
     bank_number: "",
+    bank_name: "",               // ✅ NEW
     contact_no: "",
     qualification: "",
     profession: "",
-    home_category: "",
     professional_details: "",
     land_details: "",
+    home_category: "",
     schemes_applied: "",
     health_status: "",
   })
@@ -86,6 +85,7 @@ function App() {
   /* ================= FETCH ================= */
 
   const fetchCitizen = async () => {
+
     setError("")
     setCitizen(null)
 
@@ -102,6 +102,7 @@ function App() {
 
       const data = await res.json()
       setCitizen(data)
+
     } catch (err) {
       setError(err.message)
     } finally {
@@ -113,34 +114,28 @@ function App() {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const submitCitizen = async () => {
-    setError("")
 
-    try {
-      const res = await fetch(`${BASE_URL}/add/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      })
+    const res = await fetch(`${BASE_URL}/add/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    })
 
-      if (!res.ok) throw new Error("Failed to add citizen")
-
-      alert("Citizen added successfully ✅")
-      setShowAddForm(false)
-
-      const cleared = {}
-      Object.keys(formData).forEach((k) => (cleared[k] = ""))
-      setFormData(cleared)
-    } catch (err) {
-      setError(err.message)
+    if (!res.ok) {
+      alert("Failed to add citizen")
+      return
     }
+
+    alert("Citizen added successfully ✅")
+    setShowAddForm(false)
+
+    const cleared = {}
+    Object.keys(formData).forEach(k => cleared[k] = "")
+    setFormData(cleared)
   }
 
   /* ================= RELATION OPTIONS ================= */
@@ -164,6 +159,7 @@ function App() {
         {/* SIDEBAR */}
         <div className="sidebar">
           <div className="card">
+
             <label className="label">Aadhaar Number</label>
 
             <div className="search-row">
@@ -174,10 +170,7 @@ function App() {
                 placeholder="Enter 12-digit Aadhaar"
               />
 
-              <button
-                className="btn btn-primary"
-                onClick={fetchCitizen}
-              >
+              <button className="btn btn-primary" onClick={fetchCitizen}>
                 Search
               </button>
             </div>
@@ -194,15 +187,15 @@ function App() {
           </div>
         </div>
 
-        {/* MAIN CONTENT */}
+        {/* MAIN */}
         <div className="main-content">
 
-          {/* ADD FORM */}
           {showAddForm && (
             <div className="card">
               <h2>Add Citizen Details</h2>
 
               <div className="form-grid">
+
                 {Object.entries(formData).map(([key, value]) => {
 
                   if (key === "relation_type") {
@@ -214,7 +207,7 @@ function App() {
                         onChange={handleChange}
                         className="input"
                       >
-                        {relationOptions.map((opt) => (
+                        {relationOptions.map(opt => (
                           <option key={opt.value} value={opt.value}>
                             {opt.label}
                           </option>
@@ -229,8 +222,8 @@ function App() {
                         key={key}
                         name={key}
                         value={value}
-                        onChange={handleChange}
                         placeholder="Relation Aadhaar"
+                        onChange={handleChange}
                         className="input"
                         disabled={formData.relation_type === "HEAD"}
                       />
@@ -259,23 +252,12 @@ function App() {
             </div>
           )}
 
-          {/* CITIZEN DATA */}
           {citizen && (
             <div className="card">
 
-              {/* BUTTON GROUP */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  flexWrap: "wrap",
-                  marginBottom: "15px",
-                }}
-              >
-                <button
-                  className="btn btn-primary"
-                  onClick={downloadPDF}
-                >
+              <div style={{display:"flex", gap:"10px", flexWrap:"wrap"}}>
+
+                <button className="btn btn-primary" onClick={downloadPDF}>
                   📄 Download Individual PDF
                 </button>
 
@@ -285,6 +267,7 @@ function App() {
                 >
                   👨‍👩‍👧 Download Family Details
                 </button>
+
               </div>
 
               <div className="table-wrapper">
@@ -296,6 +279,7 @@ function App() {
                   </tbody>
                 </table>
               </div>
+
             </div>
           )}
 
@@ -308,9 +292,7 @@ function App() {
 function TableRow({ label, value }) {
   return (
     <tr>
-      <td className="label-cell">
-        {label.replace(/_/g, " ")}
-      </td>
+      <td className="label-cell">{label.replace(/_/g, " ")}</td>
       <td>{value || "-"}</td>
     </tr>
   )
