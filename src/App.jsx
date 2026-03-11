@@ -1,8 +1,8 @@
 import { useState } from "react"
 import "./App.css"
 
-const BASE_URL = "http://localhost:8000/api"
-
+const BASE_URL = "https://pro-back-flsb.onrender.com/api"
+// const BASE_URL = "http://localhost:8000/api"
 function App() {
   const [aadhaar, setAadhaar] = useState("")
   const [citizen, setCitizen] = useState(null)
