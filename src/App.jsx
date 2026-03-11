@@ -1,16 +1,72 @@
 import { useState } from "react"
+import "./App.css"
+
+const BASE_URL = "http://localhost:8000/api"
 
 function App() {
   const [aadhaar, setAadhaar] = useState("")
   const [citizen, setCitizen] = useState(null)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-
   const [showAddForm, setShowAddForm] = useState(false)
+
+  /* ================= COMMON DOWNLOAD FUNCTION ================= */
+
+  const downloadFile = async (url, filename) => {
+    try {
+      const response = await fetch(url)
+
+      if (!response.ok)
+        throw new Error("Failed to generate PDF")
+
+      const blob = await response.blob()
+
+      const link = document.createElement("a")
+      link.href = window.URL.createObjectURL(blob)
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
+  /* ================= INDIVIDUAL PDF ================= */
+
+  const downloadPDF = async () => {
+    if (!aadhaar) {
+      alert("Search citizen first")
+      return
+    }
+
+    downloadFile(
+      `${BASE_URL}/citizen/${aadhaar}/pdf/`,
+      `Citizen_${aadhaar}.pdf`
+    )
+  }
+
+  /* ================= FAMILY PDF ================= */
+
+  const downloadFamilyPDF = async () => {
+    if (!aadhaar) {
+      alert("Search citizen first")
+      return
+    }
+
+    downloadFile(
+      `${BASE_URL}/fam/${aadhaar}/pdf/`,
+      `Family_${aadhaar}.pdf`
+    )
+  }
+
+  /* ================= FORM STATE ================= */
+
   const [formData, setFormData] = useState({
     aadhaar_card: "",
     name: "",
-    relation_name: "",
+    relation_type: "",
+    relation_aadhaar: "",
     ward: "",
     gpu: "",
     district: "",
@@ -27,6 +83,8 @@ function App() {
     health_status: "",
   })
 
+  /* ================= FETCH ================= */
+
   const fetchCitizen = async () => {
     setError("")
     setCitizen(null)
@@ -39,10 +97,7 @@ function App() {
     setLoading(true)
 
     try {
-      const res = await fetch(
-        `https://pro-back-flsb.onrender.com/api/get/${aadhaar}/`
-      )
-
+      const res = await fetch(`${BASE_URL}/get/${aadhaar}/`)
       if (!res.ok) throw new Error("Citizen not found")
 
       const data = await res.json()
@@ -54,14 +109,22 @@ function App() {
     }
   }
 
+  /* ================= FORM ================= */
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
   }
 
   const submitCitizen = async () => {
     setError("")
+
     try {
-      const res = await fetch("https://pro-back-flsb.onrender.com/api/add/", {
+      const res = await fetch(`${BASE_URL}/add/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -71,93 +134,172 @@ function App() {
 
       alert("Citizen added successfully ✅")
       setShowAddForm(false)
-      setFormData({})
+
+      const cleared = {}
+      Object.keys(formData).forEach((k) => (cleared[k] = ""))
+      setFormData(cleared)
     } catch (err) {
       setError(err.message)
     }
   }
 
+  /* ================= RELATION OPTIONS ================= */
+
+  const relationOptions = [
+    { value: "", label: "Select Relation Type" },
+    { value: "HEAD", label: "Head of Family" },
+    { value: "SO", label: "S/O" },
+    { value: "DO", label: "D/O" },
+    { value: "WO", label: "W/O" },
+  ]
+
+  /* ================= UI ================= */
+
   return (
-    <div className="min-h-screen bg-gray-100 px-4 py-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="container">
+      <h1>Citizen Information Portal</h1>
 
-        <h1 className="text-3xl font-bold text-center mb-8">
-          Citizen Information Portal
-        </h1>
+      <div className="layout">
 
-        {/* Search + Add */}
-        <div className="bg-white p-6 rounded-lg shadow-md max-w-xl mx-auto">
-          <label className="block text-sm font-medium mb-2">
-            Aadhaar Number
-          </label>
+        {/* SIDEBAR */}
+        <div className="sidebar">
+          <div className="card">
+            <label className="label">Aadhaar Number</label>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              value={aadhaar}
-              onChange={(e) => setAadhaar(e.target.value)}
-              placeholder="Enter 12-digit Aadhaar"
-              className="flex-1 border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="search-row">
+              <input
+                className="input"
+                value={aadhaar}
+                onChange={(e) => setAadhaar(e.target.value)}
+                placeholder="Enter 12-digit Aadhaar"
+              />
 
-            <button
-              onClick={fetchCitizen}
-              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-            >
-              Search
-            </button>
-          </div>
-
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="mt-4 w-full border border-blue-600 text-blue-600 py-2 rounded hover:bg-blue-50"
-          >
-            ➕ Add Citizen
-          </button>
-
-          {loading && <p className="text-blue-600 mt-4 text-center">Loading...</p>}
-          {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
-        </div>
-
-        {/* Add Form */}
-        {showAddForm && (
-          <div className="mt-10 bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Add Citizen Details</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.keys(formData).map((key) => (
-                <input
-                  key={key}
-                  name={key}
-                  placeholder={key.replace(/_/g, " ")}
-                  value={formData[key] || ""}
-                  onChange={handleChange}
-                  className="border rounded px-3 py-2"
-                />
-              ))}
+              <button
+                className="btn btn-primary"
+                onClick={fetchCitizen}
+              >
+                Search
+              </button>
             </div>
 
             <button
-              onClick={submitCitizen}
-              className="mt-6 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
+              className="btn btn-outline"
+              onClick={() => setShowAddForm(!showAddForm)}
             >
-              Submit
+              ➕ Add Citizen
             </button>
-          </div>
-        )}
 
-        {/* Citizen Table */}
-        {citizen && (
-          <div className="mt-10 bg-white rounded-lg shadow-md overflow-x-auto">
-            <table className="min-w-full">
-              <tbody>
-                {Object.entries(citizen).map(([key, value]) => (
-                  <TableRow key={key} label={key} value={value} />
-                ))}
-              </tbody>
-            </table>
+            {loading && <p className="loading">Loading...</p>}
+            {error && <p className="error">{error}</p>}
           </div>
-        )}
+        </div>
+
+        {/* MAIN CONTENT */}
+        <div className="main-content">
+
+          {/* ADD FORM */}
+          {showAddForm && (
+            <div className="card">
+              <h2>Add Citizen Details</h2>
+
+              <div className="form-grid">
+                {Object.entries(formData).map(([key, value]) => {
+
+                  if (key === "relation_type") {
+                    return (
+                      <select
+                        key={key}
+                        name="relation_type"
+                        value={value}
+                        onChange={handleChange}
+                        className="input"
+                      >
+                        {relationOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    )
+                  }
+
+                  if (key === "relation_aadhaar") {
+                    return (
+                      <input
+                        key={key}
+                        name={key}
+                        value={value}
+                        onChange={handleChange}
+                        placeholder="Relation Aadhaar"
+                        className="input"
+                        disabled={formData.relation_type === "HEAD"}
+                      />
+                    )
+                  }
+
+                  return (
+                    <input
+                      key={key}
+                      name={key}
+                      value={value}
+                      onChange={handleChange}
+                      placeholder={key.replace(/_/g, " ")}
+                      className="input"
+                    />
+                  )
+                })}
+              </div>
+
+              <button
+                className="btn btn-success submit-btn"
+                onClick={submitCitizen}
+              >
+                Submit
+              </button>
+            </div>
+          )}
+
+          {/* CITIZEN DATA */}
+          {citizen && (
+            <div className="card">
+
+              {/* BUTTON GROUP */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  marginBottom: "15px",
+                }}
+              >
+                <button
+                  className="btn btn-primary"
+                  onClick={downloadPDF}
+                >
+                  📄 Download Individual PDF
+                </button>
+
+                <button
+                  className="btn btn-outline"
+                  onClick={downloadFamilyPDF}
+                >
+                  👨‍👩‍👧 Download Family Details
+                </button>
+              </div>
+
+              <div className="table-wrapper">
+                <table>
+                  <tbody>
+                    {Object.entries(citizen).map(([key, value]) => (
+                      <TableRow key={key} label={key} value={value} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   )
@@ -165,11 +307,11 @@ function App() {
 
 function TableRow({ label, value }) {
   return (
-    <tr className="border-b">
-      <td className="bg-gray-50 px-4 py-2 font-medium text-sm w-1/3">
+    <tr>
+      <td className="label-cell">
         {label.replace(/_/g, " ")}
       </td>
-      <td className="px-4 py-2 text-sm">{value || "-"}</td>
+      <td>{value || "-"}</td>
     </tr>
   )
 }
